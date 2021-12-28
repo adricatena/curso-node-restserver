@@ -1,18 +1,29 @@
 const { request, response } = require("express");
 const bcryptjs = require("bcryptjs");
-const { validationResult } = require("express-validator");
+// const { validationResult } = require("express-validator");
 
 const User = require("../models/user");
 
-const getUsers = (req = request, res = response) => {
-  const query = req.query;
-  const { id, nombre, api_key = "123456" } = req.query;
+const getUsers = async (req = request, res = response) => {
+  /* const query = req.query;
+  const { id, nombre, api_key = "123456" } = req.query; */
+
+  const { limit = 5, since = 0 } = req.query;
+  const query = { state: true };
+
+  /* const total = await User.countDocuments({ state: true });
+  const users = await User.find({ state: true })
+    .skip(Number(since))
+    .limit(Number(limit)); */
+
+  const [total, users] = await Promise.all([
+    User.countDocuments(query),
+    User.find(query).skip(Number(since)).limit(Number(limit)),
+  ]);
+
   res.json({
-    msj: "get API - controller",
-    query,
-    id,
-    nombre,
-    api_key,
+    total,
+    users,
   });
 };
 
@@ -20,13 +31,7 @@ const postUsers = async (req = request, res = response) => {
   const { name, mail, password, role } = req.body;
   // const { name, age } = req.body;
   const user = new User({ name, mail, password, role });
-  // validamos correo
-  const existEmail = await User.findOne({ mail });
-  if (existEmail) {
-    return res.status(400).json({
-      msj: "Ese correo ya esta registrado",
-    });
-  }
+
   // hash
   const salt = bcryptjs.genSaltSync();
   user.password = bcryptjs.hashSync(password, salt);
@@ -36,14 +41,18 @@ const postUsers = async (req = request, res = response) => {
   });
 };
 
-const putUsers = (req = request, res = response) => {
-  const param = req.params.id;
+const putUsers = async (req = request, res = response) => {
+  // const param = req.params.id;
   const { id } = req.params;
-  res.json({
-    msj: "put API - controller",
-    param,
-    id,
-  });
+  const { _id, password, google, correo, ...info } = req.body;
+
+  if (password) {
+    const salt = bcryptjs.genSaltSync();
+    info.password = bcryptjs.hashSync(password, salt);
+  }
+  const user = await User.findByIdAndUpdate(id, info);
+
+  res.json(user);
 };
 
 const patchUsers = (req = request, res = response) => {
@@ -52,10 +61,12 @@ const patchUsers = (req = request, res = response) => {
   });
 };
 
-const deletetUsers = (req = request, res = response) => {
-  res.json({
-    msj: "delete API - controller",
-  });
+const deletetUsers = async (req = request, res = response) => {
+  const { id } = req.params;
+
+  const user = await User.findByIdAndUpdate(id, { state: false });
+
+  res.json(user);
 };
 
 module.exports = {
