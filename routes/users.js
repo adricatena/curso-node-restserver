@@ -2,6 +2,7 @@ const { Router } = require("express");
 const { check } = require("express-validator");
 
 const { validateData } = require("../middleware/validate-data");
+const {validateJWT} = require("../middleware/validate-jwt");
 
 const {
   isValidRole,
@@ -23,7 +24,7 @@ router.get("/", getUsers);
 
 router.post(
   "/",
-  [
+  [ validateJWT
     check("name", "El nombre es obligatorio").notEmpty(),
     check("password", "El password debe tener al menos 6 letras").isLength({
       min: 6,
@@ -50,7 +51,7 @@ router.put(
 router.patch("/", patchUsers);
 router.delete(
   "/:id",
-  [
+  [ validate
     check("id", "El id no es valido").isMongoId(),
     check("id").custom(userExistById),
     validateData,
